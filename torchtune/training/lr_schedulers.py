@@ -17,6 +17,7 @@ def get_cosine_schedule_with_warmup(
     num_warmup_steps: int,
     num_training_steps: int,
     num_cycles: float = 0.5,
+    initial_learning_rate: float = 1e-4,
     min_learning_rate: float = 0.0,
     last_epoch: int = -1,
 ) -> LambdaLR:
@@ -40,6 +41,9 @@ def get_cosine_schedule_with_warmup(
         torch.optim.lr_scheduler.LambdaLR with the appropriate schedule.
     """
     def lr_lambda(current_step: int) -> float:
+        
+        min_lr_progress = math.acos(2 * min_learning_rate / initial_learning_rate - 1) / math.pi
+        
         # linear warmup phase
         if current_step < num_warmup_steps:
             return current_step / max(1, num_warmup_steps)
@@ -51,8 +55,12 @@ def get_cosine_schedule_with_warmup(
         cosine_lr_multiple = 0.5 * (
             1.0 + math.cos(math.pi * num_cycles * 2.0 * progress)
         )
+        min_cosine_lr_multiple = 0.5 * (
+            1.0 + math.cos(math.pi * num_cycles * 2.0 * min_lr_progress)
+        )
+        print(min_lr_progress, min_cosine_lr_multiple)
         # Adjust to ensure the minimum learning rate
-        return max(min_learning_rate, cosine_lr_multiple)
+        return max(min_cosine_lr_multiple, cosine_lr_multiple)
 
     return LambdaLR(optimizer, lr_lambda, last_epoch)
 
